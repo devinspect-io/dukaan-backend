@@ -96,7 +96,9 @@ def add_rating():
 @app.route("/rating/<business_id>", methods=["GET"])
 def get_rating(business_id):
     """ GET Business rating"""
-    rating = db.ratings.find_one({"_id": business_id})
+    rating = db.ratings.aggregate(
+        [{"$group": {"_id": business_id, "pop": {"$avg": "$rating"}}}]
+    )
     if rating is None:
         return (
             jsonify(
@@ -109,3 +111,7 @@ def get_rating(business_id):
         )
 
     return jsonify({"success": True, "rating": clean_dict_helper(rating)})
+
+
+# by cities
+# by search
