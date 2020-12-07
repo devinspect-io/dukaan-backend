@@ -1,4 +1,5 @@
 """API for Achi Dukaan"""
+import sys
 import os
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
@@ -34,12 +35,15 @@ def add_user():
     payload = request.json
     user = db.users.find_one({"email": payload["email"]})
     if user is not None:
-        jsonify(
-            {
-                "success": False,
-                "message": f'Duplicate email detected. User {payload["email"]} already exists.',
-            }
-        ), 400
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": f'Duplicate email detected. User {payload["email"]} already exists.',
+                }
+            ),
+            400,
+        )
 
     db.users.insert_one(payload)
     return jsonify({"success": False, "user": clean_dict_helper(payload)}), 201
@@ -57,23 +61,51 @@ def get_or_add_dukaan():
     return jsonify({"success": True, "dukaans": clean_dict_helper(dukaans)})
 
 
-@app.route("/city", methods=["GET", "POST"])
-def get_or_add_city():
-    """ Add a new city """
-    if request.method == "POST":
+@app.route("/rating", methods=["POST"])
+def add_rating():
+    """Add a new rating"""
+    try:
         payload = request.json
-        city_req = payload["city"].lower().strip()
-        city = db.city.find_one({"name": city_req})
-        if city is not None:
+        db_rating = db.ratings.find_one(
+            {
+                "user": payload["user"],
+                "business": payload["business"],
+            }
+        )
+        if db_rating is not None:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": """Duplicate Rating detected for Shop 
+                        {} User {} already exists.""".format(
+                            payload["user"], payload["business"]
+                        ),
+                    }
+                ),
+                400,
+            )
+        db.ratings.insert_one(payload)
+        return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
+
+    except Exception as err:
+        print("Error: ", str(err))
+        print(sys.exc_info()[-1].tb_lineno)
+
+
+@app.route("/rating/<business_id>", methods=["GET"])
+def get_rating(business_id):
+    """ GET Business rating"""
+    rating = db.ratings.find_one({"_id": business_id})
+    if rating is None:
+        return (
             jsonify(
                 {
                     "success": False,
-                    "message": f'Duplicate email detected. User {payload["email"]} already exists.',
+                    "message": "Rating for business {} not found.".format(business_id),
                 }
-            ), 400
+            ),
+            404,
+        )
 
-        db.city.insert_one(payload)
-        return jsonify({"success": False, "city": clean_dict_helper(payload)}), 201
-
-    cities = list(db.city.find({}))
-    return jsonify({"success": True, "cities": clean_dict_helper(cities)})
+    return jsonify({"success": True, "rating": clean_dict_helper(rating)})
