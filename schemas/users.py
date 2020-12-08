@@ -1,0 +1,1 @@
+users_schema = ['email', 'password', 'city', 'street']

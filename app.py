@@ -1,15 +1,26 @@
 """API for Achi Dukaan"""
-import sys
+
 import os
+import sys
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from flask_jwt_extended import (
+    JWTManager, jwt_required, create_access_token,
+    get_jwt_identity
+)
+
+from schemas.users import users_schema
 from utils import clean_dict_helper
 
 
 app = Flask(__name__)
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["dukaan"]
+
+# Setup the Flask-JWT-Extended extension
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') 
+jwt = JWTManager(app)
 
 
 @app.route("/")
@@ -18,7 +29,36 @@ def hello_world():
     return jsonify({"message": "Welcome to Dukaan Rating API"})
 
 
+@app.route('/login', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"message": "Missing JSON in request"}), 400
+
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+    if not email:
+        return jsonify({"message": "Missing email parameter"}), 400
+    if not password:
+        return jsonify({"message": "Missing password parameter"}), 400
+
+    user = db.users.find_one({
+        'email': email
+    })
+
+    if user is None:
+        return jsonify({"message": "User not found"}), 404
+
+    if user['password'] == password:
+        # Return access token
+        access_token = create_access_token(identity=email)
+        return jsonify(access_token=access_token), 200
+
+    return jsonify({"message": "Invalid email or password"}), 401
+    
+
+
 @app.route("/user/<user_id>", methods=["GET"])
+@jwt_required
 def get_user(user_id):
     """ GET user"""
     user = db.users.find_one({"_id": ObjectId(user_id)})
@@ -33,6 +73,10 @@ def get_user(user_id):
 def add_user():
     """ Add a user"""
     payload = request.json
+    for required_key in users_schema:
+        if required_key not in payload.keys():
+            return jsonify({"message": f"Missing {required_key} parameter"}), 400
+    
     user = db.users.find_one({"email": payload["email"]})
     if user is not None:
         return (
@@ -46,10 +90,11 @@ def add_user():
         )
 
     db.users.insert_one(payload)
-    return jsonify({"success": False, "user": clean_dict_helper(payload)}), 201
+    return jsonify({"success": True, "user": clean_dict_helper(payload)}), 201
 
 
 @app.route("/dukaan", methods=["GET", "POST"])
+@jwt_required
 def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
@@ -62,6 +107,7 @@ def get_or_add_dukaan():
 
 
 @app.route("/rating", methods=["POST"])
+@jwt_required
 def add_rating():
     """Add a new rating"""
     try:
