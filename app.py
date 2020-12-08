@@ -230,7 +230,7 @@ def get_business_by_city(city):
 def get_business_details(business_id):
     """ Get business details along with rating """
 
-    business = list(db.dukaans.find_one({'_id': ObjectId(business_id)})
+    business = db.dukaans.find_one({'_id': ObjectId(business_id)}
     if business is None:
         jsonify({"success": False, "message": "Business not found."}), 404
     
