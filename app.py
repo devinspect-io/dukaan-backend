@@ -265,8 +265,5 @@ def get_business_details(business_id):
 @app.route("/search/<query>", methods=["GET"])
 def search(query):
     """ Search by business name """
-
-    business = list(db.dukaans.find({"name": query}))
-    if business is None:
-        return jsonify({"success": False, "message": "Business not found."}), 404
-    return jsonify({"success": True, "business": clean_dict_helper(business)})
+    businesses = clean_dict_helper(list(db.dukaans.find({"name": query})))
+    return jsonify({"success": True, "business": businesses})
