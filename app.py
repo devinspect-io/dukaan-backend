@@ -247,5 +247,8 @@ def get_business_details(business_id):
     else:
         business['avg_rating'] = 0.0
     
+    for rating in ratings:
+        rating['user_name'] = db.users.find_one({'_id': ObjectId(rating['user'])})['name']
+
     business['ratings'] = ratings    
     return jsonify({"success": True, "business": clean_dict_helper(business)})
