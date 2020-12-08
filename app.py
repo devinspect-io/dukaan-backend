@@ -2,6 +2,7 @@
 
 import os
 import sys
+import re
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -265,5 +266,10 @@ def get_business_details(business_id):
 @app.route("/search/<query>", methods=["GET"])
 def search(query):
     """ Search by business name """
-    businesses = clean_dict_helper(list(db.dukaans.find({"name": query})))
-    return jsonify({"success": True, "business": businesses})
+    rgx = re.compile(".*{}.*".format(query), re.IGNORECASE)  # compile the regex
+
+    businesses = list(db.dukaans.find({"name": rgx}))
+    if len(businesses) == 0:
+        return jsonify({"success": False, "message": "Business not found."}), 404
+
+    return jsonify({"success": True, "business": clean_dict_helper(businesses)})
