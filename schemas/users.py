@@ -1,1 +1,1 @@
-users_schema = ['email', 'password', 'city', 'street']
+users_schema = ['email', 'password', 'city', 'street', 'full_name']
