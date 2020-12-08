@@ -100,6 +100,7 @@ def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
         payload = request.json
+        payload = change_case(payload, "lower")
         business = db.dukaans.find_one({"name": payload["name"]})
         if business is not None:
             return (
@@ -115,8 +116,7 @@ def get_or_add_dukaan():
         for required_key in business_schema:
             if required_key not in payload.keys():
                 return jsonify({"message": f"Missing {required_key} parameter"}), 400
-        # print("TYPE of payload: ", type(payload))
-        # payload = change_case(payload, "lower")
+
         db.dukaans.insert_one(payload)
         return jsonify({"success": True, "dukaan": clean_dict_helper(payload)}), 201
 
@@ -157,6 +157,7 @@ def add_rating():
     """Add a new rating"""
     try:
         payload = request.json
+        payload = change_case(payload, "lower")
         db_rating = db.ratings.find_one(
             {
                 "user": payload["user"],
@@ -181,7 +182,6 @@ def add_rating():
         for required_key in rating_schema:
             if required_key not in payload.keys():
                 return jsonify({"message": f"Missing {required_key} parameter"}), 400
-        # payload = change_case(payload, "lower")
         db.ratings.insert_one(payload)
         return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
 
@@ -233,7 +233,7 @@ def get_business_by_city(city):
     return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
 
 
-@app.route("/business/<business_id>", methods=["GET", "POST"])
+@app.route("/business/<business_id>", methods=["GET"])
 def get_business_details(business_id):
     """ Get business details along with rating """
 
