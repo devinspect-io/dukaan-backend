@@ -16,7 +16,7 @@ from schemas.users import users_schema
 from schemas.business import business_schema
 from schemas.rating import rating_schema
 
-from utils import clean_dict_helper
+from utils import clean_dict_helper, change_case
 
 
 app = Flask(__name__)
@@ -26,7 +26,6 @@ db = client["dukaan"]
 # Setup the Flask-JWT-Extended extension
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
-
 
 
 @app.route("/")
@@ -55,7 +54,7 @@ def login():
     if user["password"] == password:
         # Return access token
         access_token = create_access_token(identity=email)
-        return jsonify(access_token=access_token, user_id=str(user['_id'])), 200
+        return jsonify(access_token=access_token, user_id=str(user["_id"])), 200
 
     return jsonify({"message": "Invalid email or password"}), 401
 
@@ -91,6 +90,7 @@ def add_user():
             400,
         )
 
+    payload = change_case(payload, "lower")
     db.users.insert_one(payload)
     return jsonify({"success": True, "user": clean_dict_helper(payload)}), 201
 
@@ -100,51 +100,56 @@ def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
         payload = request.json
-        business = db.dukaans.find_one({'name': payload['name']})
+        business = db.dukaans.find_one({"name": payload["name"]})
         if business is not None:
-            return jsonify({"success": False, "message": 'Business name already exists, Please choose another name.'}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Business name already exists, Please choose another name.",
+                    }
+                ),
+                400,
+            )
 
         for required_key in business_schema:
             if required_key not in payload.keys():
                 return jsonify({"message": f"Missing {required_key} parameter"}), 400
-
+        # print("TYPE of payload: ", type(payload))
+        # payload = change_case(payload, "lower")
         db.dukaans.insert_one(payload)
         return jsonify({"success": True, "dukaan": clean_dict_helper(payload)}), 201
 
     dukaans = list(db.dukaans.find({}).limit(5))
     for dukaan in dukaans:
-        if len(dukaan.get('categories', [])) > 0:
-            dukaan['categories'] = [
-                db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in dukaan['categories']
+        if len(dukaan.get("categories", [])) > 0:
+            dukaan["categories"] = [
+                db.categories.find_one({"_id": ObjectId(_id)})["name"]
+                for _id in dukaan["categories"]
             ]
-        ratings = list(db.ratings.find({'business': str(dukaan['_id'])}, {'rating': 1}))
+        ratings = list(db.ratings.find({"business": str(dukaan["_id"])}, {"rating": 1}))
         if len(ratings) > 0:
-            ratings_sum = sum([
-                r['rating'] for r in ratings
-            ])
-            dukaan['avg_rating'] = float(ratings_sum)/float(len(ratings))
+            ratings_sum = sum([r["rating"] for r in ratings])
+            dukaan["avg_rating"] = float(ratings_sum) / float(len(ratings))
         else:
-            dukaan['avg_rating'] = 0.0
-    
+            dukaan["avg_rating"] = 0.0
+
     return jsonify({"success": True, "dukaans": clean_dict_helper(dukaans)})
 
 
 @app.route("/category/<category_name>", methods=["GET"])
 def add_category(category_name):
-    db.categories.insert_one({'name': category_name})
-    return jsonify({
-        'success': True,
-        'message': f'{category_name} added successfully.'
-    })
+    """ Adds a new category """
+    category_name = category_name.lower()
+    db.categories.insert_one({"name": category_name})
+    return jsonify({"success": True, "message": f"{category_name} added successfully."})
 
 
 @app.route("/categories", methods=["GET"])
 def get_categories():
+    """ List all categories """
     categories = list(db.categories.find({}))
-    return jsonify({
-        'success': True,
-        'categories': clean_dict_helper(categories)
-    })
+    return jsonify({"success": True, "categories": clean_dict_helper(categories)})
 
 
 @app.route("/rating", methods=["POST"])
@@ -176,7 +181,7 @@ def add_rating():
         for required_key in rating_schema:
             if required_key not in payload.keys():
                 return jsonify({"message": f"Missing {required_key} parameter"}), 400
-
+        # payload = change_case(payload, "lower")
         db.ratings.insert_one(payload)
         return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
 
@@ -188,9 +193,11 @@ def add_rating():
 @app.route("/rating/<business_id>", methods=["GET"])
 def get_rating(business_id):
     """ GET Business rating"""
-    rating = list(db.ratings.aggregate(
-        [{"$group": {"_id": "$business", "pop": {"$avg": "$rating"}}}]
-    ))
+    rating = list(
+        db.ratings.aggregate(
+            [{"$group": {"_id": "$business", "pop": {"$avg": "$rating"}}}]
+        )
+    )
     if rating is None:
         return (
             jsonify(
@@ -205,23 +212,23 @@ def get_rating(business_id):
     return jsonify({"success": True, "rating": clean_dict_helper(rating)})
 
 
-
 @app.route("/get-business-by-city/<city>", methods=["GET"])
 def get_business_by_city(city):
     businesses = list(db.dukaans.find({"city": city}).limit(10))
     for business in businesses:
-        if len(business.get('categories', [])) > 0:
-            business['categories'] = [
-                db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in business['categories']
+        if len(business.get("categories", [])) > 0:
+            business["categories"] = [
+                db.categories.find_one({"_id": ObjectId(_id)})["name"]
+                for _id in business["categories"]
             ]
-        ratings = list(db.ratings.find({'business': str(business['_id'])}, {'rating': 1}))
+        ratings = list(
+            db.ratings.find({"business": str(business["_id"])}, {"rating": 1})
+        )
         if len(ratings) > 0:
-            ratings_sum = sum([
-                r['rating'] for r in ratings
-            ])
-            business['avg_rating'] = float(ratings_sum)/float(len(ratings))
+            ratings_sum = sum([r["rating"] for r in ratings])
+            business["avg_rating"] = float(ratings_sum) / float(len(ratings))
         else:
-            business['avg_rating'] = 0.0
+            business["avg_rating"] = 0.0
 
     return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
 
@@ -230,25 +237,36 @@ def get_business_by_city(city):
 def get_business_details(business_id):
     """ Get business details along with rating """
 
-    business = db.dukaans.find_one({'_id': ObjectId(business_id)})
+    business = db.dukaans.find_one({"_id": ObjectId(business_id)})
     if business is None:
         return jsonify({"success": False, "message": "Business not found."}), 404
-    
-    if len(business.get('categories', [])) > 0:
-        business['categories'] = [
-            db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in business['categories']
-        ]
-    ratings = list(db.ratings.find({'business': str(business_id)}))
-    if len(ratings) > 0:
-        ratings_sum = sum([
-            r['rating'] for r in ratings
-        ])
-        business['avg_rating'] = float(ratings_sum)/float(len(ratings))
-    else:
-        business['avg_rating'] = 0.0
-    
-    for rating in ratings:
-        rating['user_name'] = db.users.find_one({'_id': ObjectId(rating['user'])})['name']
 
-    business['ratings'] = ratings    
+    if len(business.get("categories", [])) > 0:
+        business["categories"] = [
+            db.categories.find_one({"_id": ObjectId(_id)})["name"]
+            for _id in business["categories"]
+        ]
+    ratings = list(db.ratings.find({"business": str(business_id)}))
+    if len(ratings) > 0:
+        ratings_sum = sum([r["rating"] for r in ratings])
+        business["avg_rating"] = float(ratings_sum) / float(len(ratings))
+    else:
+        business["avg_rating"] = 0.0
+
+    for rating in ratings:
+        rating["user_name"] = db.users.find_one({"_id": ObjectId(rating["user"])})[
+            "name"
+        ]
+
+    business["ratings"] = ratings
+    return jsonify({"success": True, "business": clean_dict_helper(business)})
+
+
+@app.route("/search/<query>", methods=["GET"])
+def search(query):
+    """ Search by business name """
+
+    business = list(db.dukaans.find({"name": query}))
+    if business is None:
+        return jsonify({"success": False, "message": "Business not found."}), 404
     return jsonify({"success": True, "business": clean_dict_helper(business)})

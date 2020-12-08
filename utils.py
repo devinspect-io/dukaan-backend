@@ -14,3 +14,11 @@ def clean_dict_helper(d):
             d.update({k: clean_dict_helper(v)})
 
     return d
+
+
+def change_case(obj, case=None):
+    for k in obj.keys():
+        print("OBJECT key: ", k)
+        print("OBJECT VALUES: ", obj["k"])
+        obj[k] = obj[k].lower() if case == "lower" else obj[k].title()
+    return obj
