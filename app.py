@@ -209,24 +209,20 @@ def get_rating(business_id):
 
 @app.route("/get-business-by-city/<city>", methods=["GET"])
 def get_business_by_city(city):
-    details = []
     businesses = list(db.dukaans.find({"city": city}).limit(10))
-    if len(businesses) == 0:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "Business for city {} not found.".format(city),
-                }
-            ),
-            404,
-        )
-
+    businesses = list(db.dukaans.find({}).limit(5))
     for business in businesses:
-        ratings = list(db.ratings.find({"business": str(business["_id"])}).limit(30))
-        payload = {}
-        payload["Business"] = business
-        payload["Ratings"] = ratings
-        details.append(payload)
+        if len(business.get('categories', [])) > 0:
+            business['categories'] = [
+                db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in business['categories']
+            ]
+        ratings = list(db.ratings.find({'business': str(business['_id'])}, {'rating': 1}))
+        if len(ratings) > 0:
+            ratings_sum = sum([
+                r['rating'] for r in ratings
+            ])
+            business['avg_rating'] = float(ratings_sum)/float(len(ratings))
+        else:
+            business['avg_rating'] = 0.0
 
-    return jsonify({"success": True, "businesses": clean_dict_helper(details)})
+    return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
