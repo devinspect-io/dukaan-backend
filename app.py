@@ -210,7 +210,6 @@ def get_rating(business_id):
 @app.route("/get-business-by-city/<city>", methods=["GET"])
 def get_business_by_city(city):
     businesses = list(db.dukaans.find({"city": city}).limit(10))
-    businesses = list(db.dukaans.find({}).limit(5))
     for business in businesses:
         if len(business.get('categories', [])) > 0:
             business['categories'] = [
