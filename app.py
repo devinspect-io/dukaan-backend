@@ -141,9 +141,9 @@ def add_rating():
 @app.route("/rating/<business_id>", methods=["GET"])
 def get_rating(business_id):
     """ GET Business rating"""
-    rating = db.ratings.aggregate(
-        [{"$group": {"_id": business_id, "pop": {"$avg": "$rating"}}}]
-    )
+    rating = list(db.ratings.aggregate(
+        [{"$group": {"_id": "$business", "pop": {"$avg": "$rating"}}}]
+    ))
     if rating is None:
         return (
             jsonify(
@@ -154,12 +154,11 @@ def get_rating(business_id):
             ),
             404,
         )
-
+    print(rating)
     return jsonify({"success": True, "rating": clean_dict_helper(rating)})
 
 
 @app.route("/get-business-by-city/<city>", methods=["GET"])
-@jwt_required
 def get_business_by_city(city):
     businesses = list(db.dukaans.find({"city": city}))
     if len(businesses) == 0:
