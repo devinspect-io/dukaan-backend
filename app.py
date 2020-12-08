@@ -65,11 +65,10 @@ def login():
 def get_user(user_id):
     """ GET user"""
     user = db.users.find_one({"_id": ObjectId(user_id)})
-
     if user is None:
         return jsonify({"success": False, "message": "User not found."}), 404
 
-    return jsonify({"success": True, "user": clean_dict_helper(user)})
+    return jsonify({"success": True, "user": clean_dict_helper(user)}), 200
 
 
 @app.route("/user", methods=["POST"])
@@ -225,3 +224,28 @@ def get_business_by_city(city):
             business['avg_rating'] = 0.0
 
     return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
+
+
+@app.route("/business/<business_id>", methods=["GET", "POST"])
+def get_business_details(business_id):
+    """ Get business details along with rating """
+
+    business = list(db.dukaans.find_one({'_id': ObjectId(business_id)})
+    if business is None:
+        jsonify({"success": False, "message": "Business not found."}), 404
+    
+    if len(business.get('categories', [])) > 0:
+        business['categories'] = [
+            db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in business['categories']
+        ]
+    ratings = list(db.ratings.find({'business': str(business_id)}))
+    if len(ratings) > 0:
+        ratings_sum = sum([
+            r['rating'] for r in ratings
+        ])
+        business['avg_rating'] = float(ratings_sum)/float(len(ratings))
+    else:
+        business['avg_rating'] = 0.0
+    
+    business['ratings'] = ratings    
+    return jsonify({"success": True, "business": clean_dict_helper(business)})
