@@ -226,7 +226,7 @@ def get_business_by_city(city):
         )
         if len(ratings) > 0:
             ratings_sum = sum([r["rating"] for r in ratings])
-            business["avg_rating"] = float(ratings_sum) / float(len(ratings))
+            business["avg_rating"] = round(float(ratings_sum) / float(len(ratings)), 1)
         else:
             business["avg_rating"] = 0.0
 
@@ -249,7 +249,7 @@ def get_business_details(business_id):
     ratings = list(db.ratings.find({"business": str(business_id)}))
     if len(ratings) > 0:
         ratings_sum = sum([r["rating"] for r in ratings])
-        business["avg_rating"] = float(ratings_sum) / float(len(ratings))
+        business["avg_rating"] = round(float(ratings_sum) / float(len(ratings)), 1)
     else:
         business["avg_rating"] = 0.0
 
