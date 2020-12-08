@@ -13,6 +13,8 @@ from flask_jwt_extended import (
 )
 
 from schemas.users import users_schema
+from schemas.business import business_schema
+from schemas.rating import rating_schema
 from utils import clean_dict_helper
 
 
@@ -98,6 +100,12 @@ def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
         payload = request.json
+
+        # Enforce Schema
+        for required_key in business_schema:
+            if required_key not in payload.keys():
+                return jsonify({"message": f"Missing {required_key} parameter"}), 400
+
         db.dukaans.insert_one(payload)
         return jsonify({"success": False, "dukaan": clean_dict_helper(payload)}), 201
 
@@ -130,6 +138,12 @@ def add_rating():
                 ),
                 400,
             )
+
+        # Enforce Schema
+        for required_key in rating_schema:
+            if required_key not in payload.keys():
+                return jsonify({"message": f"Missing {required_key} parameter"}), 400
+
         db.ratings.insert_one(payload)
         return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
 
@@ -162,7 +176,8 @@ def get_rating(business_id):
 
 @app.route("/get-business-by-city/<city>", methods=["GET"])
 def get_business_by_city(city):
-    businesses = list(db.dukaans.find({"city": city}))
+    details = []
+    businesses = list(db.dukaans.find({"city": city}).limit(10))
     if len(businesses) == 0:
         return (
             jsonify(
@@ -174,4 +189,11 @@ def get_business_by_city(city):
             404,
         )
 
-    return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
+    for business in businesses:
+        ratings = list(db.ratings.find({"business": str(business["_id"])}).limit(30))
+        payload = {}
+        payload["Business"] = business
+        payload["Ratings"] = ratings
+        details.append(payload)
+
+    return jsonify({"success": True, "businesses": clean_dict_helper(details)})
