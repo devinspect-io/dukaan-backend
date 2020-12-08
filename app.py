@@ -6,8 +6,10 @@ from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from flask_jwt_extended import (
-    JWTManager, jwt_required, create_access_token,
-    get_jwt_identity
+    JWTManager,
+    jwt_required,
+    create_access_token,
+    get_jwt_identity,
 )
 
 from schemas.users import users_schema
@@ -19,7 +21,7 @@ client = MongoClient(os.getenv("MONGO_URI"))
 db = client["dukaan"]
 
 # Setup the Flask-JWT-Extended extension
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') 
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
 
 
@@ -29,32 +31,29 @@ def hello_world():
     return jsonify({"message": "Welcome to Dukaan Rating API"})
 
 
-@app.route('/login', methods=['POST'])
+@app.route("/login", methods=["POST"])
 def login():
     if not request.is_json:
         return jsonify({"message": "Missing JSON in request"}), 400
 
-    email = request.json.get('email', None)
-    password = request.json.get('password', None)
+    email = request.json.get("email", None)
+    password = request.json.get("password", None)
     if not email:
         return jsonify({"message": "Missing email parameter"}), 400
     if not password:
         return jsonify({"message": "Missing password parameter"}), 400
 
-    user = db.users.find_one({
-        'email': email
-    })
+    user = db.users.find_one({"email": email})
 
     if user is None:
         return jsonify({"message": "User not found"}), 404
 
-    if user['password'] == password:
+    if user["password"] == password:
         # Return access token
         access_token = create_access_token(identity=email)
         return jsonify(access_token=access_token), 200
 
     return jsonify({"message": "Invalid email or password"}), 401
-    
 
 
 @app.route("/user/<user_id>", methods=["GET"])
@@ -76,7 +75,7 @@ def add_user():
     for required_key in users_schema:
         if required_key not in payload.keys():
             return jsonify({"message": f"Missing {required_key} parameter"}), 400
-    
+
     user = db.users.find_one({"email": payload["email"]})
     if user is not None:
         return (
@@ -159,5 +158,19 @@ def get_rating(business_id):
     return jsonify({"success": True, "rating": clean_dict_helper(rating)})
 
 
-# by cities
-# by search
+@app.route("/get-business-by-city/<city>", methods=["GET"])
+@jwt_required
+def get_business_by_city(city):
+    businesses = list(db.dukaans.find({"city": city}))
+    if len(businesses) == 0:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "message": "Business for city {} not found.".format(city),
+                }
+            ),
+            404,
+        )
+
+    return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
