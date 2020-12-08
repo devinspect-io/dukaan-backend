@@ -270,6 +270,6 @@ def search(query):
 
     businesses = list(db.dukaans.find({"name": rgx}))
     if len(businesses) == 0:
-        return jsonify({"success": False, "message": "Business not found."}), 404
+        return jsonify({"success": False, "business": []}), 404
 
     return jsonify({"success": True, "business": clean_dict_helper(businesses)})
