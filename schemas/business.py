@@ -1,1 +1,1 @@
-business_schema = ["businessName", "street1", "city", "tags"]
+business_schema = ["name", "street", "city", "categories", "phone"]

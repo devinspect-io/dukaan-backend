@@ -15,6 +15,7 @@ from flask_jwt_extended import (
 from schemas.users import users_schema
 from schemas.business import business_schema
 from schemas.rating import rating_schema
+
 from utils import clean_dict_helper
 
 
@@ -25,6 +26,7 @@ db = client["dukaan"]
 # Setup the Flask-JWT-Extended extension
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
+
 
 
 @app.route("/")
@@ -53,7 +55,7 @@ def login():
     if user["password"] == password:
         # Return access token
         access_token = create_access_token(identity=email)
-        return jsonify(access_token=access_token), 200
+        return jsonify(access_token=access_token, user_id=str(user['_id'])), 200
 
     return jsonify({"message": "Invalid email or password"}), 401
 
@@ -95,26 +97,58 @@ def add_user():
 
 
 @app.route("/dukaan", methods=["GET", "POST"])
-@jwt_required
 def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
         payload = request.json
+        business = db.dukaans.find_one({'name': payload['name']})
+        if business is not None:
+            return jsonify({"success": False, "message": 'Business name already exists, Please choose another name.'}), 400
 
-        # Enforce Schema
         for required_key in business_schema:
             if required_key not in payload.keys():
                 return jsonify({"message": f"Missing {required_key} parameter"}), 400
 
         db.dukaans.insert_one(payload)
-        return jsonify({"success": False, "dukaan": clean_dict_helper(payload)}), 201
+        return jsonify({"success": True, "dukaan": clean_dict_helper(payload)}), 201
 
-    dukaans = list(db.dukaans.find({}))
+    dukaans = list(db.dukaans.find({}).limit(5))
+    for dukaan in dukaans:
+        if len(dukaan.get('categories', [])) > 0:
+            dukaan['categories'] = [
+                db.categories.find_one({'_id': ObjectId(_id)})['name'] for _id in dukaan['categories']
+            ]
+        ratings = list(db.ratings.find({'business': str(dukaan['_id'])}, {'rating': 1}))
+        if len(ratings) > 0:
+            ratings_sum = sum([
+                r['rating'] for r in ratings
+            ])
+            dukaan['avg_rating'] = float(ratings_sum)/float(len(ratings))
+        else:
+            dukaan['avg_rating'] = 0.0
+    
     return jsonify({"success": True, "dukaans": clean_dict_helper(dukaans)})
 
 
+@app.route("/category/<category_name>", methods=["GET"])
+def add_category(category_name):
+    db.categories.insert_one({'name': category_name})
+    return jsonify({
+        'success': True,
+        'message': f'{category_name} added successfully.'
+    })
+
+
+@app.route("/categories", methods=["GET"])
+def get_categories():
+    categories = list(db.categories.find({}))
+    return jsonify({
+        'success': True,
+        'categories': clean_dict_helper(categories)
+    })
+
+
 @app.route("/rating", methods=["POST"])
-@jwt_required
 def add_rating():
     """Add a new rating"""
     try:
@@ -155,11 +189,9 @@ def add_rating():
 @app.route("/rating/<business_id>", methods=["GET"])
 def get_rating(business_id):
     """ GET Business rating"""
-    rating = list(
-        db.ratings.aggregate(
-            [{"$group": {"_id": "$business", "pop": {"$avg": "$rating"}}}]
-        )
-    )
+    rating = list(db.ratings.aggregate(
+        [{"$group": {"_id": "$business", "pop": {"$avg": "$rating"}}}]
+    ))
     if rating is None:
         return (
             jsonify(
@@ -172,6 +204,7 @@ def get_rating(business_id):
         )
     print(rating)
     return jsonify({"success": True, "rating": clean_dict_helper(rating)})
+
 
 
 @app.route("/get-business-by-city/<city>", methods=["GET"])
