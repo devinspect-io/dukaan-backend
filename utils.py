@@ -20,4 +20,4 @@ def change_case(obj, case=None):
     for k in obj.keys():
         if isinstance(obj[k], str):
             obj[k] = obj[k].lower() if case == "lower" else obj[k].title()
-    return new_obj
+    return obj
