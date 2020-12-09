@@ -159,6 +159,10 @@ def add_rating():
     try:
         payload = request.json
         # payload = change_case(payload, "lower")
+        for required_key in rating_schema:
+            if required_key not in payload.keys():
+                return jsonify({"message": f"Missing {required_key} parameter"}), 400
+        
         db_rating = db.ratings.find_one(
             {
                 "user": payload["user"],
@@ -166,23 +170,17 @@ def add_rating():
             }
         )
         if db_rating is not None:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": """Duplicate Rating detected for Shop 
-                        {} User {} already exists.""".format(
-                            payload["user"], payload["business"]
-                        ),
-                    }
-                ),
-                400,
-            )
+            db.ratings.update_one({
+                '_id': db_rating['_id']
+            },{
+            '$set': {
+                'rating': payload['rating']
+                }
+            }, upsert=False)
+            return jsonify({
+                'success': True, 'message': 'Rating updated successfully.'
+            }), 201
 
-        # Enforce Schema
-        for required_key in rating_schema:
-            if required_key not in payload.keys():
-                return jsonify({"message": f"Missing {required_key} parameter"}), 400
         db.ratings.insert_one(payload)
         return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
 
