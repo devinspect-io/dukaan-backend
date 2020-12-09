@@ -17,7 +17,7 @@ from schemas.users import users_schema
 from schemas.business import business_schema
 from schemas.rating import rating_schema
 
-from utils import clean_dict_helper, change_case
+from utils import clean_dict_helper
 
 
 app = Flask(__name__)
@@ -91,7 +91,7 @@ def add_user():
             400,
         )
 
-    payload = change_case(payload, "lower")
+    # payload = change_case(payload, "lower")
     db.users.insert_one(payload)
     return jsonify({"success": True, "user": clean_dict_helper(payload)}), 201
 
@@ -101,7 +101,7 @@ def get_or_add_dukaan():
     """ Add a new business """
     if request.method == "POST":
         payload = request.json
-        payload = change_case(payload, "lower")
+        # payload = change_case(payload, "lower")
         business = db.dukaans.find_one({"name": payload["name"]})
         if business is not None:
             return (
@@ -158,7 +158,7 @@ def add_rating():
     """Add a new rating"""
     try:
         payload = request.json
-        payload = change_case(payload, "lower")
+        # payload = change_case(payload, "lower")
         db_rating = db.ratings.find_one(
             {
                 "user": payload["user"],
@@ -215,7 +215,8 @@ def get_rating(business_id):
 
 @app.route("/get-business-by-city/<city>", methods=["GET"])
 def get_business_by_city(city):
-    businesses = list(db.dukaans.find({"city": city}).limit(10))
+    businesses = list(db.dukaans.find({"city": {"$regex": city, "$options": "i"}}))
+    # businesses = list(db.dukaans.find({"city": city}).limit(10))
     for business in businesses:
         if len(business.get("categories", [])) > 0:
             business["categories"] = [
