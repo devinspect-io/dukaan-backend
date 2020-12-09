@@ -230,7 +230,7 @@ def get_business_by_city(city):
             business["avg_rating"] = round(float(ratings_sum) / float(len(ratings)), 1)
         else:
             business["avg_rating"] = 0.0
-
+        business["total_ratings"] = len(ratings)
     return jsonify({"success": True, "businesses": clean_dict_helper(businesses)})
 
 
@@ -260,6 +260,7 @@ def get_business_details(business_id):
         ]
 
     business["ratings"] = ratings
+    business["total_ratings"] = len(ratings)
     return jsonify({"success": True, "business": clean_dict_helper(business)})
 
 
