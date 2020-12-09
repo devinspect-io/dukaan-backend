@@ -18,7 +18,7 @@ def clean_dict_helper(d):
 
     if isinstance(d, dict):
         for k, v in deepcopy(d).items():
-            if isinstance(v, str):
-                v = v.title()
+            # if isinstance(v, str):
+            # v = v.title()
             d.update({k: clean_dict_helper(v)})
     return d
