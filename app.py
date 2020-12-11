@@ -174,16 +174,40 @@ def add_rating():
                 '_id': db_rating['_id']
             },{
             '$set': {
-                'rating': payload['rating']
+                'rating': payload['rating'],
+                'comment': payload['comment']
                 }
             }, upsert=False)
-            return jsonify({
-                'success': True, 'message': 'Rating updated successfully.'
-            }), 201
+        else:
+            db.ratings.insert_one(payload)
+        
 
-        db.ratings.insert_one(payload)
-        return jsonify({"success": True, "rating": clean_dict_helper(payload)}), 201
+        # Now get updated business details
+        business_id = payload["business"]
+        business = db.dukaans.find_one({"_id": ObjectId(business_id)})
+        if business is None:
+            return jsonify({"success": False, "message": "Business not found."}), 404
 
+        if len(business.get("categories", [])) > 0:
+            business["categories"] = [
+                db.categories.find_one({"_id": ObjectId(_id)})["name"]
+                for _id in business["categories"]
+            ]
+        ratings = list(db.ratings.find({"business": str(business_id)}))
+        if len(ratings) > 0:
+            ratings_sum = sum([r["rating"] for r in ratings])
+            business["avg_rating"] = round(float(ratings_sum) / float(len(ratings)), 1)
+        else:
+            business["avg_rating"] = 0.0
+
+        for rating in ratings:
+            rating["user_name"] = db.users.find_one({"_id": ObjectId(rating["user"])})[
+                "name"
+            ]
+
+        business["ratings"] = ratings
+        business["total_ratings"] = len(ratings)
+        return jsonify({"success": True, "business": clean_dict_helper(business)}), 201
     except Exception as err:
         print("Error: ", str(err))
         print(sys.exc_info()[-1].tb_lineno)
